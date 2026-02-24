@@ -13,6 +13,16 @@ function makeFallbackDaily(seed = 3): UsagePoint[] {
   });
 }
 
+function projectedBalance(balance: number, monthlyTotal: number) {
+  const avgDaily = monthlyTotal / 30;
+  const avgHourly = avgDaily / 24;
+  return {
+    in5Hours: Number(Math.max(0, balance - avgHourly * 5).toFixed(2)),
+    in7Days: Number(Math.max(0, balance - avgDaily * 7).toFixed(2)),
+    in30Days: Number(Math.max(0, balance - avgDaily * 30).toFixed(2)),
+  };
+}
+
 function warningProvider(
   provider: ProviderKey,
   label: string,
@@ -26,6 +36,7 @@ function warningProvider(
     balance: 0,
     monthlyTotal: 0,
     daily: makeFallbackDaily(seed),
+    projectedBalance: projectedBalance(0, 0),
     status: "warning",
     message,
   };
@@ -69,6 +80,7 @@ async function fetchOpenAI(): Promise<ProviderUsage> {
       balance,
       monthlyTotal,
       daily: makeFallbackDaily(1),
+      projectedBalance: projectedBalance(balance, monthlyTotal),
       status: "ok",
       message: usageRes.ok
         ? "실시간 API 사용량을 불러왔어요."
@@ -82,6 +94,7 @@ async function fetchOpenAI(): Promise<ProviderUsage> {
       balance: 0,
       monthlyTotal: 0,
       daily: makeFallbackDaily(1),
+      projectedBalance: projectedBalance(0, 0),
       status: "error",
       message: "OpenAI API 조회에 실패했어요.",
     };
@@ -111,13 +124,17 @@ async function fetchAnthropic(): Promise<ProviderUsage> {
     if (!res.ok) throw new Error("usage endpoint unavailable");
     const data = await res.json();
 
+    const balance = Number(data?.remaining_balance_usd ?? 0);
+    const monthlyTotal = Number(data?.month_total_usd ?? 0);
+
     return {
       provider: "anthropic",
       label: "Anthropic",
       currency: "USD",
-      balance: Number(data?.remaining_balance_usd ?? 0),
-      monthlyTotal: Number(data?.month_total_usd ?? 0),
+      balance,
+      monthlyTotal,
       daily: data?.daily ?? makeFallbackDaily(2),
+      projectedBalance: projectedBalance(balance, monthlyTotal),
       status: "ok",
       message: "Anthropic 사용량 API를 조회했어요.",
     };
@@ -164,13 +181,17 @@ async function fetchGoogle(): Promise<ProviderUsage> {
     const usageData = usageRes?.ok ? await usageRes.json() : null;
     const balanceData = balanceRes?.ok ? await balanceRes.json() : null;
 
+    const balance = Number(balanceData?.balance ?? 0);
+    const monthlyTotal = Number(usageData?.monthlyTotal ?? 0);
+
     return {
       provider: "google",
       label: "Google AI Studio",
       currency: "USD",
-      balance: Number(balanceData?.balance ?? 0),
-      monthlyTotal: Number(usageData?.monthlyTotal ?? 0),
+      balance,
+      monthlyTotal,
       daily: usageData?.daily ?? makeFallbackDaily(3),
+      projectedBalance: projectedBalance(balance, monthlyTotal),
       status: usageData || balanceData ? "ok" : "warning",
       message: usageData || balanceData
         ? "Google endpoint에서 데이터를 불러왔어요."
@@ -216,13 +237,17 @@ async function fetchCustomProvider(opts: {
     const usageData = usageRes?.ok ? await usageRes.json() : null;
     const balanceData = balanceRes?.ok ? await balanceRes.json() : null;
 
+    const balance = Number(balanceData?.balance ?? 0);
+    const monthlyTotal = Number(usageData?.monthlyTotal ?? 0);
+
     return {
       provider: opts.provider,
       label: opts.label,
       currency: "USD",
-      balance: Number(balanceData?.balance ?? 0),
-      monthlyTotal: Number(usageData?.monthlyTotal ?? 0),
+      balance,
+      monthlyTotal,
       daily: usageData?.daily ?? makeFallbackDaily(opts.seed),
+      projectedBalance: projectedBalance(balance, monthlyTotal),
       status: usageData || balanceData ? "ok" : "warning",
       message: usageData || balanceData
         ? `${opts.label} endpoint에서 데이터를 불러왔어요.`

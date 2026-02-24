@@ -33,7 +33,7 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl bg-slate-50 p-3">
-          <div className="text-slate-500">잔액</div>
+          <div className="text-slate-500">현재 잔액</div>
           <div className="text-xl font-bold">
             {provider.balance.toLocaleString()} {provider.currency}
           </div>
@@ -42,6 +42,27 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
           <div className="text-slate-500">이번 달 사용량</div>
           <div className="text-xl font-bold">
             {provider.monthlyTotal.toLocaleString()} {provider.currency}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+        <div className="rounded-lg bg-indigo-50 p-2">
+          <div className="text-slate-500">5시간 후 잔액(예상)</div>
+          <div className="font-semibold text-indigo-700">
+            {provider.projectedBalance.in5Hours.toLocaleString()} {provider.currency}
+          </div>
+        </div>
+        <div className="rounded-lg bg-indigo-50 p-2">
+          <div className="text-slate-500">1주 후 잔액(예상)</div>
+          <div className="font-semibold text-indigo-700">
+            {provider.projectedBalance.in7Days.toLocaleString()} {provider.currency}
+          </div>
+        </div>
+        <div className="rounded-lg bg-indigo-50 p-2">
+          <div className="text-slate-500">1달 후 잔액(예상)</div>
+          <div className="font-semibold text-indigo-700">
+            {provider.projectedBalance.in30Days.toLocaleString()} {provider.currency}
           </div>
         </div>
       </div>

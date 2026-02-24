@@ -4,7 +4,8 @@
 
 ## 기능
 - 5개 제공자 모니터링: OpenAI / Anthropic / Google AI Studio / Groq / Kimi
-- 제공자별 잔액, 월간 사용량, 일별 차트
+- 제공자별 현재 잔액, 월간 사용량, 일별 차트
+- 잔액 분할 표시: 5시간 후 / 1주 후 / 1달 후 예상 잔액
 - 모델(제공자) 검색 기능
 - 30초 자동 갱신 (SWR)
 - 한국어 UI
@@ -32,6 +33,28 @@ cp .env.example .env.local
 - (선택) `GOOGLE_USAGE_ENDPOINT`, `GOOGLE_BALANCE_ENDPOINT`
 - (선택) `GROQ_USAGE_ENDPOINT`, `GROQ_BALANCE_ENDPOINT`
 - (선택) `KIMI_USAGE_ENDPOINT`, `KIMI_BALANCE_ENDPOINT`
+
+### API Key 입력 방법
+1. 프로젝트 루트에서 예시 파일 복사
+   ```bash
+   cp .env.example .env.local
+   ```
+2. `.env.local` 파일 열기
+   ```bash
+   nano .env.local
+   ```
+3. 각 키 값을 `=` 뒤에 붙여넣기
+   ```env
+   OPENAI_API_KEY=sk-xxxx
+   ANTHROPIC_API_KEY=sk-ant-xxxx
+   GOOGLE_AI_STUDIO_API_KEY=xxxx
+   GROQ_API_KEY=gsk_xxxx
+   KIMI_API_KEY=xxxx
+   ```
+4. 저장 후 서버 재시작
+   ```bash
+   npm run dev
+   ```
 
 > 참고: 제공자별 billing/usage endpoint 접근 가능 여부는 계정/플랜에 따라 다를 수 있습니다.
 > 실패 시 샘플 데이터로 안전하게 폴백하도록 구현되어 있습니다.
