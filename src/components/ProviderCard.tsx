@@ -73,7 +73,7 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
         </div>
       </div>
 
-      <div className="mt-4 h-56 w-full">
+      <div className="mt-4 h-40 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={provider.daily}>
             <defs>

@@ -57,7 +57,7 @@ export default function Home() {
         </p>
       )}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {filteredProviders.map((provider) => (
           <ProviderCard key={provider.provider} provider={provider} />
         ))}
