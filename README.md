@@ -5,7 +5,7 @@
 ## 기능
 - 5개 제공자 모니터링: OpenAI / Anthropic / Google AI Studio / Groq / Kimi
 - 제공자별 현재 잔액, 월간 사용량, 일별 차트
-- 잔액 분할 표시: 5시간 후 / 1주 후 / 1달 후 예상 잔액
+- 기간별 사용량 표시: 최근 5시간 / 1주 / 1달 실제 사용량 (제공자 API 지원 시)
 - 모델(제공자) 검색 기능
 - 30초 자동 갱신 (SWR)
 - 한국어 UI
@@ -33,6 +33,19 @@ cp .env.example .env.local
 - (선택) `GOOGLE_USAGE_ENDPOINT`, `GOOGLE_BALANCE_ENDPOINT`
 - (선택) `GROQ_USAGE_ENDPOINT`, `GROQ_BALANCE_ENDPOINT`
 - (선택) `KIMI_USAGE_ENDPOINT`, `KIMI_BALANCE_ENDPOINT`
+
+사용량 endpoint 응답 예시(JSON):
+```json
+{
+  "monthlyTotal": 12.34,
+  "daily": [{ "date": "02-25", "value": 0.42 }],
+  "usageWindows": {
+    "last5Hours": 0.12,
+    "last7Days": 3.45,
+    "last30Days": 12.34
+  }
+}
+```
 
 ### API Key 입력 방법
 1. 프로젝트 루트에서 예시 파일 복사

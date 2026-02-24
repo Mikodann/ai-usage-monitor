@@ -12,10 +12,10 @@ export type ProviderUsage = {
   balance: number;
   monthlyTotal: number;
   daily: UsagePoint[];
-  projectedBalance: {
-    in5Hours: number;
-    in7Days: number;
-    in30Days: number;
+  usageWindows: {
+    last5Hours?: number;
+    last7Days?: number;
+    last30Days?: number;
   };
   status: "ok" | "warning" | "error";
   message?: string;

@@ -13,22 +13,7 @@ function makeFallbackDaily(seed = 3): UsagePoint[] {
   });
 }
 
-function projectedBalance(balance: number, monthlyTotal: number) {
-  const avgDaily = monthlyTotal / 30;
-  const avgHourly = avgDaily / 24;
-  return {
-    in5Hours: Number(Math.max(0, balance - avgHourly * 5).toFixed(2)),
-    in7Days: Number(Math.max(0, balance - avgDaily * 7).toFixed(2)),
-    in30Days: Number(Math.max(0, balance - avgDaily * 30).toFixed(2)),
-  };
-}
-
-function warningProvider(
-  provider: ProviderKey,
-  label: string,
-  message: string,
-  seed: number
-): ProviderUsage {
+function warningProvider(provider: ProviderKey, label: string, message: string, seed: number): ProviderUsage {
   return {
     provider,
     label,
@@ -36,17 +21,26 @@ function warningProvider(
     balance: 0,
     monthlyTotal: 0,
     daily: makeFallbackDaily(seed),
-    projectedBalance: projectedBalance(0, 0),
+    usageWindows: {},
     status: "warning",
     message,
   };
 }
 
+function extractUsageWindows(data: any) {
+  return {
+    last5Hours:
+      typeof data?.usageWindows?.last5Hours === "number" ? Number(data.usageWindows.last5Hours) : undefined,
+    last7Days:
+      typeof data?.usageWindows?.last7Days === "number" ? Number(data.usageWindows.last7Days) : undefined,
+    last30Days:
+      typeof data?.usageWindows?.last30Days === "number" ? Number(data.usageWindows.last30Days) : undefined,
+  };
+}
+
 async function fetchOpenAI(): Promise<ProviderUsage> {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return warningProvider("openai", "OpenAI", "OPENAI_API_KEY가 설정되지 않았어요.", 1);
-  }
+  if (!apiKey) return warningProvider("openai", "OpenAI", "OPENAI_API_KEY가 설정되지 않았어요.", 1);
 
   const startDate = format(startOfMonth(today), "yyyy-MM-dd");
   const endDate = format(endOfMonth(today), "yyyy-MM-dd");
@@ -57,13 +51,10 @@ async function fetchOpenAI(): Promise<ProviderUsage> {
         headers: { Authorization: `Bearer ${apiKey}` },
         cache: "no-store",
       }),
-      fetch(
-        `https://api.openai.com/v1/dashboard/billing/usage?start_date=${startDate}&end_date=${endDate}`,
-        {
-          headers: { Authorization: `Bearer ${apiKey}` },
-          cache: "no-store",
-        }
-      ),
+      fetch(`https://api.openai.com/v1/dashboard/billing/usage?start_date=${startDate}&end_date=${endDate}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        cache: "no-store",
+      }),
     ]);
 
     const subscription = subscriptionRes.ok ? await subscriptionRes.json() : {};
@@ -80,11 +71,11 @@ async function fetchOpenAI(): Promise<ProviderUsage> {
       balance,
       monthlyTotal,
       daily: makeFallbackDaily(1),
-      projectedBalance: projectedBalance(balance, monthlyTotal),
+      usageWindows: {
+        last30Days: monthlyTotal,
+      },
       status: "ok",
-      message: usageRes.ok
-        ? "실시간 API 사용량을 불러왔어요."
-        : "일별 상세는 샘플 데이터로 표시 중이에요.",
+      message: "OpenAI API 데이터를 불러왔어요. (5시간/7일은 계정별 endpoint 지원 시 확장 가능)",
     };
   } catch {
     return {
@@ -94,7 +85,7 @@ async function fetchOpenAI(): Promise<ProviderUsage> {
       balance: 0,
       monthlyTotal: 0,
       daily: makeFallbackDaily(1),
-      projectedBalance: projectedBalance(0, 0),
+      usageWindows: {},
       status: "error",
       message: "OpenAI API 조회에 실패했어요.",
     };
@@ -103,14 +94,7 @@ async function fetchOpenAI(): Promise<ProviderUsage> {
 
 async function fetchAnthropic(): Promise<ProviderUsage> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return warningProvider(
-      "anthropic",
-      "Anthropic",
-      "ANTHROPIC_API_KEY가 설정되지 않았어요.",
-      2
-    );
-  }
+  if (!apiKey) return warningProvider("anthropic", "Anthropic", "ANTHROPIC_API_KEY가 설정되지 않았어요.", 2);
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/organizations/usage", {
@@ -123,82 +107,21 @@ async function fetchAnthropic(): Promise<ProviderUsage> {
 
     if (!res.ok) throw new Error("usage endpoint unavailable");
     const data = await res.json();
-
-    const balance = Number(data?.remaining_balance_usd ?? 0);
-    const monthlyTotal = Number(data?.month_total_usd ?? 0);
+    const usageWindows = extractUsageWindows(data);
 
     return {
       provider: "anthropic",
       label: "Anthropic",
       currency: "USD",
-      balance,
-      monthlyTotal,
+      balance: Number(data?.remaining_balance_usd ?? 0),
+      monthlyTotal: Number(data?.month_total_usd ?? 0),
       daily: data?.daily ?? makeFallbackDaily(2),
-      projectedBalance: projectedBalance(balance, monthlyTotal),
+      usageWindows,
       status: "ok",
       message: "Anthropic 사용량 API를 조회했어요.",
     };
   } catch {
-    return warningProvider(
-      "anthropic",
-      "Anthropic",
-      "Anthropic 일별/월별은 샘플 데이터로 표시 중이에요.",
-      2
-    );
-  }
-}
-
-async function fetchGoogle(): Promise<ProviderUsage> {
-  const apiKey = process.env.GOOGLE_AI_STUDIO_API_KEY;
-  if (!apiKey) {
-    return warningProvider(
-      "google",
-      "Google AI Studio",
-      "GOOGLE_AI_STUDIO_API_KEY가 설정되지 않았어요.",
-      3
-    );
-  }
-
-  const usageEndpoint = process.env.GOOGLE_USAGE_ENDPOINT;
-  const balanceEndpoint = process.env.GOOGLE_BALANCE_ENDPOINT;
-
-  try {
-    const [usageRes, balanceRes] = await Promise.all([
-      usageEndpoint
-        ? fetch(usageEndpoint, {
-            headers: { Authorization: `Bearer ${apiKey}` },
-            cache: "no-store",
-          })
-        : Promise.resolve(null),
-      balanceEndpoint
-        ? fetch(balanceEndpoint, {
-            headers: { Authorization: `Bearer ${apiKey}` },
-            cache: "no-store",
-          })
-        : Promise.resolve(null),
-    ]);
-
-    const usageData = usageRes?.ok ? await usageRes.json() : null;
-    const balanceData = balanceRes?.ok ? await balanceRes.json() : null;
-
-    const balance = Number(balanceData?.balance ?? 0);
-    const monthlyTotal = Number(usageData?.monthlyTotal ?? 0);
-
-    return {
-      provider: "google",
-      label: "Google AI Studio",
-      currency: "USD",
-      balance,
-      monthlyTotal,
-      daily: usageData?.daily ?? makeFallbackDaily(3),
-      projectedBalance: projectedBalance(balance, monthlyTotal),
-      status: usageData || balanceData ? "ok" : "warning",
-      message: usageData || balanceData
-        ? "Google endpoint에서 데이터를 불러왔어요."
-        : "Google endpoint env를 연결하면 실데이터로 표시돼요.",
-    };
-  } catch {
-    return warningProvider("google", "Google AI Studio", "Google 데이터는 샘플로 표시 중이에요.", 3);
+    return warningProvider("anthropic", "Anthropic", "Anthropic 데이터 조회 실패(또는 미지원)예요.", 2);
   }
 }
 
@@ -211,9 +134,7 @@ async function fetchCustomProvider(opts: {
   seed: number;
 }): Promise<ProviderUsage> {
   const apiKey = process.env[opts.keyEnv];
-  if (!apiKey) {
-    return warningProvider(opts.provider, opts.label, `${opts.keyEnv}가 설정되지 않았어요.`, opts.seed);
-  }
+  if (!apiKey) return warningProvider(opts.provider, opts.label, `${opts.keyEnv}가 설정되지 않았어요.`, opts.seed);
 
   const usageEndpoint = process.env[opts.usageEnv];
   const balanceEndpoint = process.env[opts.balanceEnv];
@@ -237,28 +158,36 @@ async function fetchCustomProvider(opts: {
     const usageData = usageRes?.ok ? await usageRes.json() : null;
     const balanceData = balanceRes?.ok ? await balanceRes.json() : null;
 
-    const balance = Number(balanceData?.balance ?? 0);
-    const monthlyTotal = Number(usageData?.monthlyTotal ?? 0);
-
     return {
       provider: opts.provider,
       label: opts.label,
       currency: "USD",
-      balance,
-      monthlyTotal,
+      balance: Number(balanceData?.balance ?? 0),
+      monthlyTotal: Number(usageData?.monthlyTotal ?? 0),
       daily: usageData?.daily ?? makeFallbackDaily(opts.seed),
-      projectedBalance: projectedBalance(balance, monthlyTotal),
+      usageWindows: extractUsageWindows(usageData),
       status: usageData || balanceData ? "ok" : "warning",
       message: usageData || balanceData
         ? `${opts.label} endpoint에서 데이터를 불러왔어요.`
         : `${opts.label} endpoint env를 연결하면 실데이터로 표시돼요.`,
     };
   } catch {
-    return warningProvider(opts.provider, opts.label, `${opts.label} 데이터는 샘플로 표시 중이에요.`, opts.seed);
+    return warningProvider(opts.provider, opts.label, `${opts.label} 데이터 조회 실패(또는 미지원)예요.`, opts.seed);
   }
 }
 
-async function fetchGroq(): Promise<ProviderUsage> {
+async function fetchGoogle() {
+  return fetchCustomProvider({
+    provider: "google",
+    label: "Google AI Studio",
+    keyEnv: "GOOGLE_AI_STUDIO_API_KEY",
+    usageEnv: "GOOGLE_USAGE_ENDPOINT",
+    balanceEnv: "GOOGLE_BALANCE_ENDPOINT",
+    seed: 3,
+  });
+}
+
+async function fetchGroq() {
   return fetchCustomProvider({
     provider: "groq",
     label: "Groq",
@@ -269,7 +198,7 @@ async function fetchGroq(): Promise<ProviderUsage> {
   });
 }
 
-async function fetchKimi(): Promise<ProviderUsage> {
+async function fetchKimi() {
   return fetchCustomProvider({
     provider: "kimi",
     label: "Kimi",

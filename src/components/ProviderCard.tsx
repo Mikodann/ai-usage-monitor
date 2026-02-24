@@ -48,21 +48,27 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
 
       <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <div className="rounded-lg bg-indigo-50 p-2">
-          <div className="text-slate-500">5시간 후 잔액(예상)</div>
+          <div className="text-slate-500">최근 5시간 사용량</div>
           <div className="font-semibold text-indigo-700">
-            {provider.projectedBalance.in5Hours.toLocaleString()} {provider.currency}
+            {provider.usageWindows.last5Hours !== undefined
+              ? `${provider.usageWindows.last5Hours.toLocaleString()} ${provider.currency}`
+              : "미지원"}
           </div>
         </div>
         <div className="rounded-lg bg-indigo-50 p-2">
-          <div className="text-slate-500">1주 후 잔액(예상)</div>
+          <div className="text-slate-500">최근 1주 사용량</div>
           <div className="font-semibold text-indigo-700">
-            {provider.projectedBalance.in7Days.toLocaleString()} {provider.currency}
+            {provider.usageWindows.last7Days !== undefined
+              ? `${provider.usageWindows.last7Days.toLocaleString()} ${provider.currency}`
+              : "미지원"}
           </div>
         </div>
         <div className="rounded-lg bg-indigo-50 p-2">
-          <div className="text-slate-500">1달 후 잔액(예상)</div>
+          <div className="text-slate-500">최근 1달 사용량</div>
           <div className="font-semibold text-indigo-700">
-            {provider.projectedBalance.in30Days.toLocaleString()} {provider.currency}
+            {provider.usageWindows.last30Days !== undefined
+              ? `${provider.usageWindows.last30Days.toLocaleString()} ${provider.currency}`
+              : "미지원"}
           </div>
         </div>
       </div>
