@@ -1,4 +1,4 @@
-export type ProviderKey = "openai" | "anthropic" | "google";
+export type ProviderKey = "openai" | "anthropic" | "google" | "groq" | "kimi";
 
 export type UsagePoint = {
   date: string;
